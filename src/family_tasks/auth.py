@@ -1,6 +1,8 @@
+from typing import TypedDict
+
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session
 
 from .config import settings
@@ -19,12 +21,18 @@ oauth.register(
 router = APIRouter()
 
 
-def current_user(request: Request) -> dict | None:
+class AuthUser(TypedDict):
+    email: str
+    name: str
+    picture: str | None
+
+
+def current_user(request: Request) -> AuthUser | None:
     return request.session.get("user")
 
 
-def require_user(request: Request) -> dict:
-    user = request.session.get("user")
+def require_user(request: Request) -> AuthUser:
+    user = current_user(request)
     if not user:
         # Raise 401; main.py has an exception handler that turns 401 on browser GETs into a
         # redirect to /login. HTMX/API callers get a real 401.
@@ -33,16 +41,16 @@ def require_user(request: Request) -> dict:
 
 
 @router.get("/auth/login")
-async def auth_login(request: Request):
+async def auth_login(request: Request) -> Response:
     # IMPORTANT: build redirect_uri from BASE_URL, NOT request.url_for(...).
     # Behind Cloud Run's TLS-terminating proxy, url_for() yields http:// and Google rejects the
     # redirect_uri as a mismatch. Constructing from settings.base_url avoids this entirely.
     redirect_uri = settings.base_url.rstrip("/") + "/auth/callback"
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
 
 
 @router.get("/auth/callback")
-async def auth_callback(request: Request, session: Session = Depends(get_session)):
+async def auth_callback(request: Request, session: Session = Depends(get_session)) -> Response:
     token = await oauth.google.authorize_access_token(request)
     info = token.get("userinfo")  # Authlib parses the OIDC id_token into 'userinfo'
     if not info or not info.get("email"):
@@ -69,14 +77,14 @@ async def auth_callback(request: Request, session: Session = Depends(get_session
 
 
 @router.get("/logout")
-def logout(request: Request):
+def logout(request: Request) -> Response:
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
 
 
 # --- DEV ONLY: lets you use the app locally without Google. Guarded by ENV. ---
 @router.get("/auth/dev-login")
-def dev_login(request: Request):
+def dev_login(request: Request) -> Response:
     if settings.is_prod:
         raise HTTPException(status_code=404)
     request.session["user"] = {

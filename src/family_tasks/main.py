@@ -1,7 +1,8 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,7 +19,7 @@ templates = Jinja2Templates(directory=str(BASE / "templates"))
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
     yield
 
@@ -32,7 +33,7 @@ app.include_router(tasks.router)
 
 
 @app.get("/login")
-def login_page(request: Request):
+def login_page(request: Request) -> Response:
     return templates.TemplateResponse(
         request,
         "login.html",
@@ -41,12 +42,12 @@ def login_page(request: Request):
 
 
 @app.get("/healthz")
-def healthz():
+def healthz() -> dict[str, bool]:
     return {"ok": True}
 
 
 @app.exception_handler(StarletteHTTPException)
-async def auth_redirect(request: Request, exc: StarletteHTTPException):
+async def auth_redirect(request: Request, exc: StarletteHTTPException) -> Response:
     if (
         exc.status_code == 401
         and request.method == "GET"

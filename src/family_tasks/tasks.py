@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from sqlmodel import Session, select
+from fastapi.responses import RedirectResponse, Response
+from fastapi.templating import Jinja2Templates
+from sqlmodel import Session, col, select
 
-from .auth import current_user, require_user
+from .auth import AuthUser, current_user, require_user
 from .db import get_session
 from .humanize import time_ago
 from .models import Task, TaskStatus, utcnow
@@ -18,12 +19,12 @@ _STATUS_BY_VIEW = {
 
 def _tasks_for_view(session: Session, view: str) -> list[Task]:
     status = _STATUS_BY_VIEW[view]
-    order = Task.created_at.asc() if view == "active" else Task.updated_at.desc()
+    order = col(Task.created_at).asc() if view == "active" else col(Task.updated_at).desc()
     return list(session.exec(select(Task).where(Task.status == status).order_by(order)).all())
 
 
-def render_list(request: Request, session: Session, view: str):
-    templates = request.app.state.templates
+def render_list(request: Request, session: Session, view: str) -> Response:
+    templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
         "partials/task_list.html",
@@ -31,8 +32,8 @@ def render_list(request: Request, session: Session, view: str):
     )
 
 
-def render_page(request: Request, session: Session, view: str, template: str):
-    templates = request.app.state.templates
+def render_page(request: Request, session: Session, view: str, template: str) -> Response:
+    templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
         template,
@@ -60,27 +61,27 @@ def root() -> RedirectResponse:
 @router.get("/tasks")
 def tasks_page(
     request: Request,
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     return render_page(request, session, "active", "active.html")
 
 
 @router.get("/done")
 def done_page(
     request: Request,
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     return render_page(request, session, "done", "done.html")
 
 
 @router.get("/archive")
 def archive_page(
     request: Request,
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     return render_page(request, session, "archive", "archive.html")
 
 
@@ -90,9 +91,9 @@ def create_task(
     title: str = Form(...),
     assigned_to_email: str | None = Form(None),
     is_recurring: bool = Form(False),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = Task(
         title=title.strip(),
         is_recurring=is_recurring,
@@ -110,9 +111,9 @@ def complete_task(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     task.status = TaskStatus.done
     task.completed_at = task.updated_at = utcnow()
@@ -126,9 +127,9 @@ def reactivate_task(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     task.status = TaskStatus.active
     task.completed_at = None
@@ -143,9 +144,9 @@ def archive_task(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     task.status = TaskStatus.archived
     task.archived_at = task.updated_at = utcnow()
@@ -159,9 +160,9 @@ def unarchive_task(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     task.status = TaskStatus.active
     task.archived_at = None
@@ -176,9 +177,9 @@ def toggle_recurring(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     task.is_recurring = not task.is_recurring
     task.updated_at = utcnow()
@@ -192,9 +193,9 @@ def delete_task(
     request: Request,
     task_id: int,
     view: str = Form(...),
-    user: dict = Depends(require_user),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
-):
+) -> Response:
     task = _get_task_or_404(session, task_id)
     if task.status != TaskStatus.archived:
         raise HTTPException(status_code=409, detail="only archived tasks can be deleted")

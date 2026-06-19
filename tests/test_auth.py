@@ -13,7 +13,9 @@ def _mock_token(email: str, name: str = "Test User"):
 
 def test_allowlisted_email_sets_session_and_redirects(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(settings, "allowed_emails", "person1@gmail.com")
-    monkeypatch.setattr(auth.oauth.google, "authorize_access_token", _mock_token("Person1@Gmail.com"))
+    monkeypatch.setattr(
+        auth.oauth.google, "authorize_access_token", _mock_token("Person1@Gmail.com")
+    )
 
     r = client.get("/auth/callback")
 
@@ -24,7 +26,9 @@ def test_allowlisted_email_sets_session_and_redirects(client: TestClient, monkey
 
 def test_non_allowlisted_email_rejected(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(settings, "allowed_emails", "person1@gmail.com")
-    monkeypatch.setattr(auth.oauth.google, "authorize_access_token", _mock_token("stranger@gmail.com"))
+    monkeypatch.setattr(
+        auth.oauth.google, "authorize_access_token", _mock_token("stranger@gmail.com")
+    )
 
     r = client.get("/auth/callback")
 
