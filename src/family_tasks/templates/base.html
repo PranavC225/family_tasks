@@ -6,6 +6,9 @@
   <title>Family Tasks</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body>
@@ -16,10 +19,12 @@
         <li><a href="/tasks">Active</a></li>
         <li><a href="/done">Done</a></li>
         <li><a href="/archive">Archive</a></li>
+        {% if user %}<li><button id="enable-notifications" class="secondary outline">🔔 Notify</button></li>{% endif %}
         {% if user %}<li><a href="/logout" role="button" class="secondary outline">Logout</a></li>{% endif %}
       </ul>
     </nav>
     {% block content %}{% endblock %}
   </main>
+  <script src="/static/push.js"></script>
 </body>
 </html>

@@ -18,6 +18,34 @@ Active → (complete) → Done → (reactivate) → Active. Any task → (archiv
 ## Run locally without Google
 Set `ENV=development` and visit `/auth/dev-login`.
 
+## Notifications (Web Push)
+Task creation fires a Web Push (VAPID) notification — no Firebase/FCM project, no Telegram. Cost is
+**$0**: the browser push services (Chrome → FCM's web-push endpoint, Firefox → Mozilla, Safari →
+APNs) are free; only your own Cloud Run compute sends the request.
+
+- **Recipients**: if the task has `assigned_to_email`, only that person is notified (skipped if
+  they're the creator). If it's a general task (no assignee), everyone in `ALLOWED_EMAILS` except
+  the creator is notified. See `tasks.py:recipients_for`.
+- **Keys**: generate once with `uv run python scripts/gen_vapid.py`, paste the three `KEY=value`
+  lines into `.env`. `VAPID_PRIVATE_KEY` is base64-encoded PEM and is a secret; `VAPID_PUBLIC_KEY`
+  is the public `applicationServerKey` the browser uses to subscribe — safe as a plain env var.
+- **Storage**: `PushSubscription` table (one row per browser/device) is created automatically by
+  `create_all()` on next startup — no migration needed.
+- **Pruning**: dead subscriptions (push service returns 404/410) are deleted automatically the next
+  time a notification targets them — see `push.py:_send`.
+- **Frontend**: `static/sw.js` (service worker), `static/push.js` (subscribe flow), the 🔔 button in
+  `base.html`. All-Android target today — works straight from the browser tab, no install step.
+
+### Enabling iOS later
+iOS Safari only delivers Web Push to a PWA added to the **Home Screen** (Settings → Share → Add to
+Home Screen), and only 16.4+ — it never works from a normal Safari tab. No server code changes are
+needed; when an iPhone joins the family:
+1. Replace the placeholder `static/icon-192.png` / `icon-512.png` with real icons (the manifest
+   already references them).
+2. Add an `apple-touch-icon` `<link>` in `base.html` pointing at a real icon.
+3. Each iPhone user: open the site in Safari → Add to Home Screen → open the app from the Home
+   Screen icon (not Safari) → tap 🔔 Notify.
+
 ## Deploy (live setup — done)
 Runbook is PLAN.md §14; this is the actual state after following it.
 

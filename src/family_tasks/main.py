@@ -3,13 +3,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, tasks
+from . import auth, push_routes, tasks
 from .auth import current_user
 from .config import settings
 from .db import init_db
@@ -30,6 +30,12 @@ app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 app.state.templates = templates  # routers read request.app.state.templates
 app.include_router(auth.router)
 app.include_router(tasks.router)
+app.include_router(push_routes.router)
+
+
+@app.get("/sw.js")
+def service_worker() -> Response:
+    return FileResponse(BASE / "static" / "sw.js", media_type="application/javascript")
 
 
 @app.get("/login")

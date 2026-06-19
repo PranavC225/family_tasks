@@ -3,6 +3,10 @@
 <form hx-post="/tasks" hx-target="#task-list" hx-swap="outerHTML" hx-on::after-request="this.reset()">
   <fieldset role="group">
     <input name="title" placeholder="What needs doing?" required autocomplete="off">
+    <select name="assigned_to_email">
+      <option value="">Everyone</option>
+      {% for u in users %}<option value="{{ u.email }}">{{ u.display_name }}</option>{% endfor %}
+    </select>
     <button type="submit">Add</button>
   </fieldset>
   <input type="hidden" name="view" value="active">

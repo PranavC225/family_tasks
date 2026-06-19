@@ -34,3 +34,12 @@ class Task(SQLModel, table=True):
     completed_at: datetime | None = None
     archived_at: datetime | None = None
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class PushSubscription(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_email: str = Field(index=True)
+    endpoint: str = Field(unique=True)
+    p256dh: str
+    auth: str
+    created_at: datetime = Field(default_factory=utcnow)
