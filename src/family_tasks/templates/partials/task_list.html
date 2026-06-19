@@ -1,0 +1,4 @@
+<div id="task-list">
+  {% if not tasks %}<p><em>Nothing here. 🎉</em></p>{% endif %}
+  {% for task in tasks %}{% include "partials/task_row.html" %}{% endfor %}
+</div>

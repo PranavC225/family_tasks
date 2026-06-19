@@ -1,0 +1,32 @@
+<article class="task-row">
+  <div class="task-row-main">
+    <strong>{{ task.title }}</strong>
+    {% if task.is_recurring %}<span title="Recurring">🔁</span>{% endif %}
+    <br>
+    <small>
+      added by {{ task.created_by_name }} · {{ time_ago(task.created_at) }}
+      {% if task.assigned_to_email %} · for {{ task.assigned_to_email }}{% endif %}
+    </small>
+  </div>
+  <div class="task-row-actions">
+    {% if view == "active" %}
+    <button hx-post="/tasks/{{ task.id }}/complete" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" title="Complete">✓</button>
+    <button hx-post="/tasks/{{ task.id }}/toggle-recurring" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" class="secondary outline" title="Toggle recurring">🔁</button>
+    <button hx-post="/tasks/{{ task.id }}/archive" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" class="secondary outline" title="Archive">📦</button>
+    {% elif view == "done" %}
+    <button hx-post="/tasks/{{ task.id }}/reactivate" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" title="Reactivate">↩</button>
+    <button hx-post="/tasks/{{ task.id }}/archive" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" class="secondary outline" title="Archive">📦</button>
+    {% elif view == "archive" %}
+    <button hx-post="/tasks/{{ task.id }}/unarchive" hx-vals='{"view": "{{ view }}"}'
+            hx-target="#task-list" hx-swap="outerHTML" title="Unarchive">↩</button>
+    <button hx-post="/tasks/{{ task.id }}/delete" hx-vals='{"view": "{{ view }}"}'
+            hx-confirm="Delete permanently?"
+            hx-target="#task-list" hx-swap="outerHTML" class="secondary outline" title="Delete">🗑</button>
+    {% endif %}
+  </div>
+</article>
