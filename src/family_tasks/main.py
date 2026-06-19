@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -34,8 +34,9 @@ app.include_router(tasks.router)
 @app.get("/login")
 def login_page(request: Request):
     return templates.TemplateResponse(
+        request,
         "login.html",
-        {"request": request, "user": current_user(request), "is_dev": not settings.is_prod},
+        {"user": current_user(request), "is_dev": not settings.is_prod},
     )
 
 
@@ -52,4 +53,4 @@ async def auth_redirect(request: Request, exc: StarletteHTTPException):
         and "text/html" in request.headers.get("accept", "")
     ):
         return RedirectResponse(url="/login", status_code=303)
-    raise exc
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
