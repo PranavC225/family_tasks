@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<article style="max-width: 28rem; margin: 4rem auto; text-align: center;">
+  <h1>Family Tasks</h1>
+  <p>Private to our family — only approved accounts can enter.</p>
+  <a href="/auth/login" role="button">Sign in with Google</a>
+  {% if is_dev %}
+  <p style="margin-top: 1rem;">
+    <a href="/auth/dev-login" role="button" class="secondary">Continue as Dev (local)</a>
+  </p>
+  {% endif %}
+</article>
+{% endblock %}

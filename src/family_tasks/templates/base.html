@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Family Tasks</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><strong>👨‍👩‍👧‍👦 Family Tasks</strong></li></ul>
+      <ul>
+        <li><a href="/tasks">Active</a></li>
+        <li><a href="/done">Done</a></li>
+        <li><a href="/archive">Archive</a></li>
+        {% if user %}<li><a href="/logout" role="button" class="secondary outline">Logout</a></li>{% endif %}
+      </ul>
+    </nav>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
