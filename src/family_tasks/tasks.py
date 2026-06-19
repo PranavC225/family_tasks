@@ -196,7 +196,8 @@ def delete_task(
     session: Session = Depends(get_session),
 ):
     task = _get_task_or_404(session, task_id)
-    if task.status == TaskStatus.archived:
-        session.delete(task)
-        session.commit()
+    if task.status != TaskStatus.archived:
+        raise HTTPException(status_code=409, detail="only archived tasks can be deleted")
+    session.delete(task)
+    session.commit()
     return render_list(request, session, view)
