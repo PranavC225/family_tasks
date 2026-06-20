@@ -26,6 +26,14 @@ class Settings(BaseSettings):
         return base64.b64decode(self.vapid_private_key).decode() if self.vapid_private_key else ""
 
     @property
+    def vapid_subject_claim(self) -> str:
+        """VAPID `sub` claim. py_vapid requires a mailto: or https: URI, not a bare email."""
+        sub = self.vapid_subject.strip()
+        if sub and not sub.startswith(("mailto:", "http://", "https://")):
+            return f"mailto:{sub}"
+        return sub
+
+    @property
     def is_prod(self) -> bool:
         return self.env == "production"
 

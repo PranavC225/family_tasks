@@ -1,5 +1,10 @@
+import base64
+
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
+from py_vapid import Vapid
 from pywebpush import WebPushException
 from sqlmodel import Session, select
 
@@ -7,6 +12,17 @@ from conftest import test_engine
 from family_tasks import push
 from family_tasks.models import PushSubscription
 from family_tasks.tasks import recipients_for
+
+
+def _gen_vapid_private_key() -> str:
+    """Mirror scripts/gen_vapid.py: base64-encoded PKCS8 PEM, as stored in VAPID_PRIVATE_KEY."""
+    priv = ec.generate_private_key(ec.SECP256R1())
+    pem = priv.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    return base64.b64encode(pem).decode()
 
 
 class _FakeResponse:
@@ -52,6 +68,7 @@ def test_subscribe_same_endpoint_upserts(logged_in_client: TestClient) -> None:
 
 def test_notify_prunes_dead_subscription(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(push, "engine", test_engine)
+    monkeypatch.setattr(push.settings, "vapid_private_key", _gen_vapid_private_key())
     with Session(test_engine) as session:
         session.add(
             PushSubscription(
@@ -72,3 +89,42 @@ def test_notify_prunes_dead_subscription(monkeypatch: pytest.MonkeyPatch) -> Non
     with Session(test_engine) as session:
         rows = list(session.exec(select(PushSubscription)).all())
     assert rows == []
+
+
+def test_notify_passes_vapid_instance_not_pem_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: notify must hand webpush a parsed Vapid instance.
+
+    The original bug passed the decoded PEM *string* as vapid_private_key, which
+    pywebpush routed through Vapid.from_string and could not parse — raising a
+    non-WebPushException that died silently inside the BackgroundTask.
+    """
+    monkeypatch.setattr(push, "engine", test_engine)
+    monkeypatch.setattr(push.settings, "vapid_private_key", _gen_vapid_private_key())
+    with Session(test_engine) as session:
+        session.add(
+            PushSubscription(
+                user_email="dev@example.com",
+                endpoint="https://push.example/live",
+                p256dh="p",
+                auth="a",
+            )
+        )
+        session.commit()
+
+    captured: dict[str, object] = {}
+
+    def _capture(*args: object, **kwargs: object) -> None:
+        captured["vapid_private_key"] = kwargs.get("vapid_private_key")
+
+    monkeypatch.setattr(push, "webpush", _capture)
+    push.notify(["dev@example.com"], "title", "body")
+
+    assert isinstance(captured["vapid_private_key"], Vapid)
+
+
+def test_vapid_subject_claim_normalizes_bare_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bare email (as may be set in Cloud Run) gets a mailto: scheme py_vapid requires."""
+    monkeypatch.setattr(push.settings, "vapid_subject", "pranav.chandode@gmail.com")
+    assert push.settings.vapid_subject_claim == "mailto:pranav.chandode@gmail.com"
+    monkeypatch.setattr(push.settings, "vapid_subject", "mailto:already@scheme.com")
+    assert push.settings.vapid_subject_claim == "mailto:already@scheme.com"
