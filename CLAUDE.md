@@ -33,6 +33,13 @@ APNs) are free; only your own Cloud Run compute sends the request.
   `create_all()` on next startup — no migration needed.
 - **Pruning**: dead subscriptions (push service returns 404/410) are deleted automatically the next
   time a notification targets them — see `push.py:_send`.
+- **Sending**: `push.py:notify` parses `VAPID_PRIVATE_KEY` into a `py_vapid.Vapid` instance via
+  `Vapid.from_pem` and passes that *instance* to `webpush` — never the raw PEM string. Passing the
+  string makes pywebpush route it through `Vapid.from_string`, which can't parse PEM and raises a
+  non-`WebPushException` that dies silently inside the `notify` BackgroundTask (this was the original
+  "notifications don't fire" bug). `VAPID_SUBJECT` is normalized to a `mailto:`/`https:` URI by
+  `config.vapid_subject_claim`, so a bare email (e.g. in Cloud Run) is tolerated. Unexpected send
+  errors are logged via `logging`, not swallowed.
 - **Frontend**: `static/sw.js` (service worker), `static/push.js` (subscribe flow), the 🔔 button in
   `base.html`. All-Android target today — works straight from the browser tab, no install step.
 
